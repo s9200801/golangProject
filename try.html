@@ -1,0 +1,55 @@
+<html>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<script type="text/javascript">
+    function playgame() {
+        //var player=$(#player).val();
+        // player%d 摸%d 打%d
+        console.log("test");
+        
+        $.ajax({
+            type:"POST",
+            url:"/onclick",
+            data:{"player1":1},
+            dataType:"string",
+            error:function(){
+                console.log("error");
+            },
+            success:function(){
+                console.log("success");
+            }
+        });
+    }
+
+</script>
+
+
+    <body>
+        <form action="http://127.0.0.1:7777/loadin" method="post">
+            帳號：<input type="text" name="username" />
+            <br/>
+            密碼：<input type="password" name="password" />
+            <br/>
+            <br/>
+            <input type="submit" value="送出" />
+        </form>
+        <form action="http://127.0.0.1:7777/majun">
+            <input type="submit" value="try" />
+        </form>
+        <div>
+            <div id="player1" style="float: left;">player1</div>
+            <div id="player2" style="float: right;">player2</div>
+        </div>
+        <br/>
+        <div>
+            <div id="player3" style="float: left;">player3</div>
+            <div id="player4" style="float: right;">player4</div>
+        </div>
+        <br/>
+        <input type="submit" name="play" value="play" onclick="playgame()"/>
+    </body>
+
+
+
+    
+</html>
+
