@@ -4,36 +4,38 @@
     function playgame() {
         //var player=$(#player).val();
         // player%d 摸%d 打%d
-        console.log("test");
+        //console.log("test");
         
         $.ajax({
             type:"POST",
-            url:"/onclick",
-            data:{"player1":1},
-            dataType:"string",
-            error:function(){
-                console.log("error");
-            },
-            success:function(){
-                console.log("success");
+            url:"http://127.0.0.1:8080/onclick",
+            data:{},
+            dataType:"json",
+            success:succFunc,
+            error:function(xhr, ajaxOptions, error){
+                console.log(error);
             }
+            
         });
+        function succFunc(data){
+            console.log("success");
+            console.log(data);
+            var json=eval(data);
+            $("#player1").html(data["player1"]);
+            $("#player2").html(data["player2"]);
+            $("#player3").html(data["player3"]);
+            $("#player4").html(data["player4"]);
+            $("#status").html(data["status"]);
+        }
     }
 
 </script>
 
 
     <body>
-        <form action="http://127.0.0.1:7777/loadin" method="post">
-            帳號：<input type="text" name="username" />
-            <br/>
-            密碼：<input type="password" name="password" />
-            <br/>
-            <br/>
-            <input type="submit" value="送出" />
-        </form>
-        <form action="http://127.0.0.1:7777/majun">
-            <input type="submit" value="try" />
+        
+        <form action="http://127.0.0.1:8080/majun">
+            <input type="submit" value="開始" />
         </form>
         <div>
             <div id="player1" style="float: left;">player1</div>
@@ -45,7 +47,8 @@
             <div id="player4" style="float: right;">player4</div>
         </div>
         <br/>
-        <input type="submit" name="play" value="play" onclick="playgame()"/>
+        <input type="submit" name="play" value="下一步" onclick="playgame()"/>
+        <div id="status"> 目前打牌情況</div>
     </body>
 
 

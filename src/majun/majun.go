@@ -8,6 +8,9 @@ import(
     "time"
     "net/http"
     //"sync"
+    "encoding/json"
+    "strconv"
+    "strings"
 )
 
 
@@ -16,6 +19,8 @@ var cards=[]int{}
 var onTable=[]int{}
 var writer http.ResponseWriter
 //var wg sync.WaitGroup
+var jsonChan chan interface{}
+var playerJson map[string]interface{}
 
 //確認是否有胡牌
 func checkListen(player *[]int)int{
@@ -291,8 +296,10 @@ func checkAAA(player *[]int) bool{
     minScore:=[]int{}
     if ((!majunFunc.Contain(playerList,onTable[len(onTable)-1]-1) && !majunFunc.Contain(playerList,onTable[len(onTable)-1]+1)) || onTable[len(onTable)-1]>40) && majunFunc.Count(playerList,onTable[len(onTable)-1])==3{
         fmt.Fprintf(writer,"槓牌:%d\n",onTable[len(onTable)-1])
+        statusString+=" 槓: "+strconv.Itoa(onTable[len(onTable)-1])
         eatCard(&playerList,2,onTable[len(onTable)-1])
         takeCard:=majunFunc.Pop(&cards,rand.Intn(len(cards)-1))
+        statusString+=" 摸: "+strconv.Itoa(takeCard)
         playerList=append(playerList,takeCard)
         
         scoreList:=score(&playerList)
@@ -310,11 +317,13 @@ func checkAAA(player *[]int) bool{
             a=len(minScore)-1
         }   
         onTable=append(onTable,majunFunc.Pop(&playerList,minScore[rand.Intn(a)]))
+        statusString+=" 打: "+strconv.Itoa(onTable[len(onTable)-1])+"<br>"
         fmt.Fprintf(writer,"%s\n",majunFunc.PrintOut(playerList))
         *player=playerList
         return true
     }else if (majunFunc.Count(playerList,onTable[len(onTable)-1])==2 && ((!majunFunc.Contain(playerList,onTable[len(onTable)-1]-1) && !majunFunc.Contain(playerList,onTable[len(onTable)-1]+1)) || onTable[len(onTable)-1]>40)) || (majunFunc.Contain(playerList,onTable[len(onTable)-1]-1) && (majunFunc.Contain(playerList,onTable[len(onTable)-1]+1)) && majunFunc.Count(playerList,onTable[len(onTable)-1])==3){
         fmt.Fprintf(writer,"碰牌:%d\n",onTable[len(onTable)-1])
+        statusString+=" 碰: "+strconv.Itoa(onTable[len(onTable)-1])
         eatCard(&playerList,1,onTable[len(onTable)-1])
         scoreList:=score(&playerList)
             
@@ -331,6 +340,7 @@ func checkAAA(player *[]int) bool{
             a=len(minScore)-1
         }    
         onTable=append(onTable,majunFunc.Pop(&playerList,minScore[rand.Intn(a)]))
+        statusString+=" 打: "+strconv.Itoa(onTable[len(onTable)-1])+"<br>"
         fmt.Fprintf(writer,"%s",majunFunc.PrintOut(playerList))
         *player=playerList
         return true
@@ -345,11 +355,19 @@ func checkAAA(player *[]int) bool{
 func checkWin(player *[]int)int{
     playerList:=*player
     listen:=listenWhat(&playerList)
+    listenString:=[]string{}
     if majunFunc.Contain(listen,onTable[len(onTable)-1]){
         fmt.Fprintf(writer,"聽\n")
         fmt.Fprintf(writer,"%s\n",majunFunc.PrintOut(listen))
         fmt.Fprintf(writer,"win\n")
         fmt.Fprintf(writer,"%d\n",onTable[len(onTable)-1])
+        for i := range listen {
+            number := listen[i]
+            text := strconv.Itoa(number)
+            listenString = append(listenString, text)
+        }
+        result := strings.Join(listenString, ",")
+        statusString+=" 聽: "+result+"<br>"+" 贏: "+strconv.Itoa(onTable[len(onTable)-1])+"<br>"
         return 0
     }else{
         return 1
@@ -362,16 +380,25 @@ func checkWin(player *[]int)int{
 func playGame(player *[]int)int{
     playerList:=*player
     listen:=listenWhat(&playerList)
+    listenString:=[]string{}
     minScore:=[]int{}
     var takeCard int
     if len(onTable)==0{    
         takeCard:=majunFunc.Pop(&cards,rand.Intn(len(cards)-1))
+        statusString+=" 摸: "+strconv.Itoa(takeCard)
         playerList=append(playerList,takeCard)
         if len(listen)!=0{
             if majunFunc.Contain(listen,playerList[len(playerList)-1]){
                 fmt.Fprintf(writer,"聽\n")
                 fmt.Fprintf(writer,"%s\n",majunFunc.PrintOut(listen))
                 fmt.Fprintf(writer,"自摸\n")
+                for i := range listen {
+                    number := listen[i]
+                    text := strconv.Itoa(number)
+                    listenString = append(listenString, text)
+                }
+                result := strings.Join(listenString, ",")
+                statusString+=" 聽: "+result+"<br>"+" 自摸: "+strconv.Itoa(takeCard)+"<br>"
                 return 1
             }      
         }
@@ -390,17 +417,26 @@ func playGame(player *[]int)int{
             a=len(minScore)-1
         }      
         onTable=append(onTable,majunFunc.Pop(&playerList,minScore[rand.Intn(a)]))
+        statusString+=" 打: "+strconv.Itoa(onTable[len(onTable)-1])+"<br>"
         *player=playerList
         return 0
     }
     if len(listen)!=0{
         takeCard:=majunFunc.Pop(&cards,rand.Intn(len(cards)-1))
+        statusString+=" 摸: "+strconv.Itoa(takeCard)
         playerList=append(playerList,takeCard)
         if majunFunc.Contain(listen,playerList[len(playerList)-1]){
             fmt.Fprintf(writer,"聽\n")
             fmt.Fprintf(writer,"%s\n",majunFunc.PrintOut(listen))
             fmt.Fprintf(writer,"自摸\n")
             fmt.Fprintf(writer,"%d\n",takeCard)
+            for i := range listen {
+                    number := listen[i]
+                    text := strconv.Itoa(number)
+                    listenString = append(listenString, text)
+                }
+                result := strings.Join(listenString, ",")
+                statusString+=" 聽: "+result+"<br>"+" 自摸: "+strconv.Itoa(takeCard)+"<br>"
             return 1
         }else{
             scoreList:=score(&playerList)
@@ -424,37 +460,48 @@ func playGame(player *[]int)int{
     }else{//吃牌可以改善
         if majunFunc.Contain(playerList,onTable[len(onTable)-1]+1) && majunFunc.Contain(playerList,onTable[len(onTable)-1]+2) && !majunFunc.Contain(playerList,onTable[len(onTable)-1]+3) && onTable[len(onTable)-1]<40{
             if !majunFunc.Contain(playerList,onTable[len(onTable)-1]){
+                statusString+=" 吃: "+strconv.Itoa(onTable[len(onTable)-1])
                 eatCard(&playerList,3,onTable[len(onTable)-1])
             }else{
                 takeCard=majunFunc.Pop(&cards,rand.Intn(len(cards)-1))
                 playerList=append(playerList,takeCard)
+                statusString+=" 摸: "+strconv.Itoa(takeCard)
+
             }
                 
         }else if majunFunc.Contain(playerList,onTable[len(onTable)-1]-1) && majunFunc.Contain(playerList,onTable[len(onTable)-1]-2) && !majunFunc.Contain(playerList,onTable[len(onTable)-1]-3) && onTable[len(onTable)-1]<40{
             if !majunFunc.Contain(playerList,onTable[len(onTable)-1]){
+                statusString+=" 吃: "+strconv.Itoa(onTable[len(onTable)-1])
                 eatCard(&playerList,4,onTable[len(onTable)-1])
             }else{
                 takeCard=majunFunc.Pop(&cards,rand.Intn(len(cards)-1))
                 playerList=append(playerList,takeCard)
+                statusString+=" 摸: "+strconv.Itoa(takeCard)
             }
  
         }else if majunFunc.Contain(playerList,onTable[len(onTable)-1]-1) && majunFunc.Contain(playerList,onTable[len(onTable)-1]+1) && onTable[len(onTable)-1]<40{
             if !majunFunc.Contain(playerList,onTable[len(onTable)-1]){
+                statusString+=" 吃: "+strconv.Itoa(onTable[len(onTable)-1])
                 eatCard(&playerList,5,onTable[len(onTable)-1])
             }else{
                 takeCard=majunFunc.Pop(&cards,rand.Intn(len(cards)-1))
                 playerList=append(playerList,takeCard)
+                statusString+=" 摸: "+strconv.Itoa(takeCard)
             }
                 
         }else{
             takeCard=majunFunc.Pop(&cards,rand.Intn(len(cards)-1))
+            statusString+=" 摸: "+strconv.Itoa(takeCard)
             playerList=append(playerList,takeCard)
             for i:=0;i<len(playerList);i++{
                 if ((!majunFunc.Contain(playerList,playerList[i]-1) && !majunFunc.Contain(playerList,playerList[i]+1)) || playerList[i]>40) && majunFunc.Count(playerList,playerList[i])==4{
                     fmt.Fprintf(writer,"暗槓\n")
+                    statusString+=" 暗槓: "+strconv.Itoa(onTable[len(onTable)-1])
                     eatCard(&playerList,6,takeCard)
                     takeCard=majunFunc.Pop(&cards,rand.Intn(len(cards)-1))
                     playerList=append(playerList,takeCard)
+                    statusString+=" 摸: "+strconv.Itoa(takeCard)
+                    
                 } 
             }
         }
@@ -476,14 +523,17 @@ func playGame(player *[]int)int{
             a-=1
         }   
         onTable=append(onTable,majunFunc.Pop(&playerList,minScore[rand.Intn(a)]))
+        statusString+=" 打: "+strconv.Itoa(onTable[len(onTable)-1])+"<br>"
         *player=playerList
         return 0
     }
 }
            
+var statusString string
 
 func Play(w http.ResponseWriter){
     player:=make([][]int,17,17)
+    cards=cards[0:0]
     cards=append(cards,11,12,13,14,15,16,17,18,19,
       11,12,13,14,15,16,17,18,19,
       11,12,13,14,15,16,17,18,19,
@@ -502,7 +552,7 @@ func Play(w http.ResponseWriter){
       41,42,43,44,45,46,47)
     onTable=onTable[0:0]
     writer=w
-	rand.Seed(time.Now().Unix())               
+	rand.Seed(time.Now().Unix())            
 	for i :=0 ;i<4;i++{
 	    for j:=0;j<4;j++{
 	        for k:=0;k<4;k++{
@@ -510,39 +560,66 @@ func Play(w http.ResponseWriter){
 	        }
 	    }
 	}
-	for i :=0 ;i<4;i++{
-		sort.Ints(player[i])
-	    fmt.Fprintf(writer,"%s\n",majunFunc.PrintOut(player[i]))
-	}
 
 	playFinish:=0
 	i:=0
 	var winner int
+    playerJson=make(map[string]interface{})
+    jsonChan=make(chan interface{})
+    playerJson["player1"]=player[0]
+    playerJson["player2"]=player[1]
+    playerJson["player3"]=player[2]
+    playerJson["player4"]=player[3]
+    playerJson["status"]="抓牌"
+    jsonChan<-playerJson
 	for (len(cards)>8 && playFinish==0){
-       // wg.Add(1)
+        //wg.Add(1)
+        statusString=""
 		if len(onTable)!=0{
 	        for j:=0;j<3;j++{
 	        	if checkWin(&player[(i+j)%4])==0{
 	        		playFinish=1
 	                winner=(i+j)%4+1
+                    statusString+="player "+strconv.Itoa(winner)
 	                break
 	        	}
             }    
             if checkAAA(&player[(i+1)%4]){
             	fmt.Fprintf(writer,"player%d 碰\n",(i+1)%4+1)
                 i=(i+1+1)%4
+                playerJson["player1"]=player[0]
+                playerJson["player2"]=player[1]
+                playerJson["player3"]=player[2]
+                playerJson["player4"]=player[3]
+                statusString+=" player "+strconv.Itoa(i)
+                playerJson["status"]=statusString
+                jsonChan<-playerJson
                 //wg.Wait()
                 continue
             } 
             if checkAAA(&player[(i+2)%4]){
             	fmt.Fprintf(writer,"player%d 碰\n",(i+2)%4+1)
                 i=(i+2+1)%4
+                playerJson["player1"]=player[0]
+                playerJson["player2"]=player[1]
+                playerJson["player3"]=player[2]
+                playerJson["player4"]=player[3]
+                statusString+=" player "+strconv.Itoa(i)
+                playerJson["status"]=statusString
+                jsonChan<-playerJson
                 //wg.Wait()
                 continue
             }
             if checkAAA(&player[(i+3)%4]){
             	fmt.Fprintf(writer,"player%d 碰\n",(i+3)%4+1)
                 i=(i+3+1)%4
+                playerJson["player1"]=player[0]
+                playerJson["player2"]=player[1]
+                playerJson["player3"]=player[2]
+                playerJson["player4"]=player[3]
+                statusString+=" player "+strconv.Itoa(i)
+                playerJson["status"]=statusString
+                jsonChan<-playerJson
                 //wg.Wait()
                 continue
             }  
@@ -550,7 +627,8 @@ func Play(w http.ResponseWriter){
 		}
 	    if playFinish==1{
 	    	break
-	    }     
+	    }
+        statusString+="player "+strconv.Itoa(i+1)     
 	    fmt.Fprintf(writer,"player%d\n",(i+1))
 	    playFinish=playGame(&player[i])
 	    fmt.Fprintf(writer,"%s\n",majunFunc.PrintOut(player[i]))
@@ -561,7 +639,16 @@ func Play(w http.ResponseWriter){
 	    if len(cards)<=8{
 	        break
 	    }
-        wg.Wait()
+        //json放這
+        
+        playerJson["player1"]=player[0]
+        playerJson["player2"]=player[1]
+        playerJson["player3"]=player[2]
+        playerJson["player4"]=player[3]
+        playerJson["status"]=statusString
+        jsonChan<-playerJson
+        
+        //wg.Wait()
 	    i+=1
 	    if i>=4{
 	        i=0
@@ -570,13 +657,22 @@ func Play(w http.ResponseWriter){
 	    
 	    
 	if playFinish==1{
+        playerJson["status"]=statusString
+        jsonChan<-playerJson
 	    fmt.Fprintf(writer,"winner: player%d",winner)
+        return
 	}
 	if len(cards)<=8 && playFinish==0{
+        playerJson["status"]="流局"
+        jsonChan<-playerJson
 	    fmt.Fprintf(writer,"流局")
+        return
 	}
 }
-/*
-func OnClick(){
-    wg.Done()
-}*/
+
+func OnClick(w http.ResponseWriter){
+    w.Header().Set("Content-Type","application/json")
+    jsonData,_:=json.Marshal(<-jsonChan)
+    w.Write(jsonData)
+    //wg.Done()
+}
